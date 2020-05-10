@@ -74,10 +74,11 @@ impl<'a> Gauge<'a> {
 
 impl<'a> Widget for Gauge<'a> {
     fn render(mut self, area: Rect, buf: &mut Buffer) {
-        let gauge_area = match self.block {
-            Some(ref mut b) => {
+        let gauge_area = match self.block.take() {
+            Some(b) => {
+                let inner_area = b.inner(area);
                 b.render(area, buf);
-                b.inner(area)
+                inner_area
             }
             None => area,
         };

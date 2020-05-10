@@ -107,10 +107,11 @@ where
     T: Iterator<Item = &'t Text<'t>>,
 {
     fn render(mut self, area: Rect, buf: &mut Buffer) {
-        let text_area = match self.block {
-            Some(ref mut b) => {
+        let text_area = match self.block.take() {
+            Some(b) => {
+                let inner_area = b.inner(area);
                 b.render(area, buf);
-                b.inner(area)
+                inner_area
             }
             None => area,
         };

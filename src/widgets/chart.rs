@@ -2,7 +2,7 @@ use crate::{
     buffer::Buffer,
     layout::{Constraint, Rect},
     style::Style,
-    symbols,
+    symbols, text,
     widgets::{
         canvas::{Canvas, Line, Points},
         Block, Borders, Widget,
@@ -18,9 +18,7 @@ where
     L: AsRef<str> + 'a,
 {
     /// Title displayed next to axis end
-    title: Option<&'a str>,
-    /// Style of the title
-    title_style: Style,
+    title: Option<text::Line<'a>>,
     /// Bounds for the axis (all data points outside these limits will not be represented)
     bounds: [f64; 2],
     /// A list of labels to put to the left or below the axis
@@ -38,7 +36,6 @@ where
     fn default() -> Axis<'a, L> {
         Axis {
             title: None,
-            title_style: Default::default(),
             bounds: [0.0, 0.0],
             labels: None,
             labels_style: Default::default(),
@@ -51,13 +48,23 @@ impl<'a, L> Axis<'a, L>
 where
     L: AsRef<str>,
 {
-    pub fn title(mut self, title: &'a str) -> Axis<'a, L> {
-        self.title = Some(title);
+    pub fn title<T>(mut self, title: T) -> Axis<'a, L>
+    where
+        T: Into<text::Line<'a>>,
+    {
+        self.title = Some(title.into());
         self
     }
 
+    #[deprecated(
+        since = "0.10.0",
+        note = "You should use styling capabilities of `text::Line` given as argument of the `title` method to apply styling to the title."
+    )]
     pub fn title_style(mut self, style: Style) -> Axis<'a, L> {
-        self.title_style = style;
+        if let Some(t) = self.title {
+            let title = String::from(t);
+            self.title = Some(text::Line::from(text::Fragment::styled(title, style)));
+        }
         self
     }
 
@@ -193,32 +200,34 @@ impl Default for ChartLayout {
 /// # use tui::symbols;
 /// # use tui::widgets::{Block, Borders, Chart, Axis, Dataset, GraphType};
 /// # use tui::style::{Style, Color};
+/// # use tui::text::Fragment;
+/// let datasets = [
+///     Dataset::default()
+///         .name("data1")
+///         .marker(symbols::Marker::Dot)
+///         .graph_type(GraphType::Scatter)
+///         .style(Style::default().fg(Color::Cyan))
+///         .data(&[(0.0, 5.0), (1.0, 6.0), (1.5, 6.434)]),
+///     Dataset::default()
+///         .name("data2")
+///         .marker(symbols::Marker::Braille)
+///         .graph_type(GraphType::Line)
+///         .style(Style::default().fg(Color::Magenta))
+///         .data(&[(4.0, 5.0), (5.0, 8.0), (7.66, 13.5)]),
+/// ];
 /// Chart::default()
 ///     .block(Block::default().title("Chart"))
 ///     .x_axis(Axis::default()
-///         .title("X Axis")
-///         .title_style(Style::default().fg(Color::Red))
+///         .title(Fragment::styled("X Axis", Style::default().fg(Color::Red)))
 ///         .style(Style::default().fg(Color::White))
 ///         .bounds([0.0, 10.0])
 ///         .labels(&["0.0", "5.0", "10.0"]))
 ///     .y_axis(Axis::default()
-///         .title("Y Axis")
-///         .title_style(Style::default().fg(Color::Red))
+///         .title(Fragment::styled("Y Axis", Style::default().fg(Color::Red)))
 ///         .style(Style::default().fg(Color::White))
 ///         .bounds([0.0, 10.0])
 ///         .labels(&["0.0", "5.0", "10.0"]))
-///     .datasets(&[Dataset::default()
-///                     .name("data1")
-///                     .marker(symbols::Marker::Dot)
-///                     .graph_type(GraphType::Scatter)
-///                     .style(Style::default().fg(Color::Cyan))
-///                     .data(&[(0.0, 5.0), (1.0, 6.0), (1.5, 6.434)]),
-///                 Dataset::default()
-///                     .name("data2")
-///                     .marker(symbols::Marker::Braille)
-///                     .graph_type(GraphType::Line)
-///                     .style(Style::default().fg(Color::Magenta))
-///                     .data(&[(4.0, 5.0), (5.0, 8.0), (7.66, 13.5)])]);
+///     .datasets(&datasets);
 /// ```
 #[derive(Debug, Clone)]
 pub struct Chart<'a, LX, LY>
@@ -358,14 +367,14 @@ where
             layout.graph_area = Rect::new(x, area.top(), area.right() - x, y - area.top() + 1);
         }
 
-        if let Some(title) = self.x_axis.title {
+        if let Some(ref title) = self.x_axis.title {
             let w = title.width() as u16;
             if w < layout.graph_area.width && layout.graph_area.height > 2 {
                 layout.title_x = Some((x + layout.graph_area.width - w, y));
             }
         }
 
-        if let Some(title) = self.y_axis.title {
+        if let Some(ref title) = self.y_axis.title {
             let w = title.width() as u16;
             if w + 1 < layout.graph_area.width && layout.graph_area.height > 2 {
                 layout.title_y = Some((x + 1, area.top()));
@@ -405,10 +414,11 @@ where
     LY: AsRef<str>,
 {
     fn render(mut self, area: Rect, buf: &mut Buffer) {
-        let chart_area = match self.block {
-            Some(ref mut b) => {
+        let chart_area = match self.block.take() {
+            Some(b) => {
+                let inner_area = b.inner(area);
                 b.render(area, buf);
-                b.inner(area)
+                inner_area
             }
             None => area,
         };
@@ -423,12 +433,12 @@ where
 
         if let Some((x, y)) = layout.title_x {
             let title = self.x_axis.title.unwrap();
-            buf.set_string(x, y, title, self.x_axis.title_style);
+            buf.set_line(x, y, title, graph_area.right().saturating_sub(x));
         }
 
         if let Some((x, y)) = layout.title_y {
             let title = self.y_axis.title.unwrap();
-            buf.set_string(x, y, title, self.y_axis.title_style);
+            buf.set_line(x, y, title, graph_area.right().saturating_sub(x));
         }
 
         if let Some(y) = layout.label_x {

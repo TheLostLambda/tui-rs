@@ -1,9 +1,12 @@
-use tui::backend::TestBackend;
-use tui::buffer::Buffer;
-use tui::layout::Rect;
-use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders};
-use tui::Terminal;
+use tui::{
+    backend::TestBackend,
+    buffer::Buffer,
+    layout::Rect,
+    style::{Color, Style},
+    text::Fragment,
+    widgets::{Block, Borders},
+    Terminal,
+};
 
 #[test]
 fn widgets_block_renders() {
@@ -12,9 +15,11 @@ fn widgets_block_renders() {
     terminal
         .draw(|mut f| {
             let block = Block::default()
-                .title("Title")
-                .borders(Borders::ALL)
-                .title_style(Style::default().fg(Color::LightBlue));
+                .title(Fragment::styled(
+                    "Title",
+                    Style::default().fg(Color::LightBlue),
+                ))
+                .borders(Borders::ALL);
             f.render_widget(
                 block,
                 Rect {

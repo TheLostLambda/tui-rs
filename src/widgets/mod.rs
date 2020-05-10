@@ -15,9 +15,6 @@
 //! - [`Sparkline`]
 //! - [`Clear`]
 
-use bitflags::bitflags;
-use std::borrow::Cow;
-
 mod barchart;
 mod block;
 pub mod canvas;
@@ -42,9 +39,9 @@ pub use self::sparkline::Sparkline;
 pub use self::table::{Row, Table, TableState};
 pub use self::tabs::Tabs;
 
-use crate::buffer::Buffer;
-use crate::layout::Rect;
-use crate::style::Style;
+use crate::{buffer::Buffer, layout::Rect, style::Style};
+use bitflags::bitflags;
+use std::borrow::Cow;
 
 bitflags! {
     /// Bitflags that can be composed to set the visible borders essentially on the block widget.

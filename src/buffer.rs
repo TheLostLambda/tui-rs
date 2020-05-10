@@ -1,6 +1,7 @@
 use crate::{
     layout::Rect,
     style::{Color, Modifier, Style},
+    text::Line,
 };
 use std::cmp::min;
 use unicode_segmentation::UnicodeSegmentation;
@@ -296,6 +297,26 @@ impl Buffer {
             x_offset += width;
         }
         (x_offset as u16, y)
+    }
+
+    pub fn set_line<'a, L>(&mut self, x: u16, y: u16, line: L, width: u16) -> (u16, u16)
+    where
+        L: Into<Line<'a>>,
+    {
+        let mut remaining_width = width;
+        let mut x = x;
+        let line = line.into();
+        for segment in line.fragments() {
+            if remaining_width == 0 {
+                break;
+            }
+            let style = segment.style();
+            let pos = self.set_stringn(x, y, segment, remaining_width as usize, style);
+            let w = pos.0.saturating_sub(x);
+            x = pos.0;
+            remaining_width = remaining_width.saturating_sub(w);
+        }
+        (x, y)
     }
 
     pub fn set_background(&mut self, area: Rect, color: Color) {

@@ -12,6 +12,7 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     symbols,
+    text::Fragment,
     widgets::{Axis, Block, Borders, Chart, Dataset, GraphType},
     Terminal,
 };
@@ -176,8 +177,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             let chart = Chart::default()
                 .block(
                     Block::default()
-                        .title("Chart 3")
-                        .title_style(Style::default().fg(Color::Cyan).modifier(Modifier::BOLD))
+                        .title(Fragment::styled(
+                            "Chart 3",
+                            Style::default().fg(Color::Cyan).modifier(Modifier::BOLD),
+                        ))
                         .borders(Borders::ALL),
                 )
                 .x_axis(
